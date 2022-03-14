@@ -1,8 +1,10 @@
 import random
 import time
+import tracemalloc
 
 RANDOMINT_LOWERBOUND = 0
 RANDOMINT_UPPERBOUND = 9
+MEMORY_PROFILING_ENABLED = True
 
 
 def standard_matrix_multiply(dimension):
@@ -52,5 +54,12 @@ def print_matrix(matrix):
 
 
 if __name__ == "__main__":
-    dimension = 325
-    standard_matrix_multiply(dimension)
+    dimension = 100
+    if MEMORY_PROFILING_ENABLED:
+        tracemalloc.start()
+        standard_matrix_multiply(dimension)
+        stats = tracemalloc.get_traced_memory()
+        memory_usage_stats_KB = (stats[0]/1000, stats[1]/1000) #converting bytes to Kilobytes
+        print("Used %dKB of memory" % memory_usage_stats_KB[1])
+    else:
+        standard_matrix_multiply(dimension)
