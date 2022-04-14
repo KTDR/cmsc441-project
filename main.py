@@ -144,4 +144,4 @@ if __name__ == "__main__":
         dimension += DIMENSION_INCREMENT
     compute_run_statistics(data_standard_time)
     print(data_standard_time)
-    print_data_report_CSV(data_standard_time, "test.csv")
+    print_data_report_CSV(data_standard_time, "standard_algo_time.csv")
