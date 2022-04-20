@@ -266,7 +266,6 @@ if __name__ == "__main__":
             matrix1 = numpy.array(generate_matrix(dimension))  # unique matrices for each run, converted to numpy arrays
             matrix2 = numpy.array(generate_matrix(dimension))
 
-
             if MEMORY_PROFILING_ENABLED:
                 tracemalloc.stop()
                 tracemalloc.start()
