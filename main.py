@@ -10,14 +10,15 @@ RANDOMINT_UPPERBOUND = 9
 RUNS_PER_DIMENSION = 3
 DIMENSION_START = 50
 DIMENSION_INCREMENT = 50
-DIMENSION_END = 500
+DIMENSION_END = 50
 AVG_INDEX = RUNS_PER_DIMENSION
 STDEV_INDEX = AVG_INDEX + 1
-MEMORY_PROFILING_ENABLED = False
+MEMORY_PROFILING_ENABLED = True
 LEAF_SIZE = 5
 OUTPUT_DIRECTORY = "output"
 BLAS_OVERRIDE = False
 BINARY_DIMENSIONS_ENABLED = False
+FRACTIONAL_LEAF_SIZE = 0.10
 
 
 def standard_matrix_multiply(matrix1, matrix2, dimension):
@@ -116,8 +117,8 @@ def compute_run_statistics(data):
     for key in data.keys():
         average = 0
         stdev = 0
-        for n in data[key]:
-            average += n
+        for n in range(0, RUNS_PER_DIMENSION):
+            average += data[key][n]
         average = average / RUNS_PER_DIMENSION
 
         for i in range(0, RUNS_PER_DIMENSION):
@@ -127,23 +128,23 @@ def compute_run_statistics(data):
         data[key][STDEV_INDEX] = stdev
 
 
-def strassen_matrix_multiply(matrix1, matrix2, dimension):
+def strassen_matrix_multiply(matrix1, matrix2, dimension, cutoff = LEAF_SIZE):
     """
     Wraps call to recursive algorithm to simplify performance analysis and logging
     :param matrix1:
     :param matrix2:
     :return:
     """
-    print(f"\nCalculating product using strassen algorithm (LEAF_SIZE = {LEAF_SIZE})...")
+    print(f"\nCalculating product using strassen algorithm (LEAF_SIZE = {cutoff})...")
     start_time = time.perf_counter()
-    result_matrix = strassen_matrix_multiply_recursive(matrix1, matrix2)
+    result_matrix = strassen_matrix_multiply_recursive(matrix1, matrix2, cutoff=cutoff)
     calc_time = time.perf_counter() - start_time
     print("Strassen matrix:")
     print_matrix(result_matrix)
     print(f' Calculated in {calc_time} seconds for dimensions {dimension}x{dimension}')
     return [result_matrix, calc_time]
 
-def strassen_matrix_multiply_recursive(matrix1, matrix2):
+def strassen_matrix_multiply_recursive(matrix1, matrix2, cutoff = LEAF_SIZE):
     """
     Computes matrix product by divide and conquer approach, recursively.
     Input: nxn matrices x and y
@@ -260,6 +261,8 @@ if __name__ == "__main__":
     data_standard_time = build_data_container()
     data_strassen_space = build_data_container()
     data_strassen_time = build_data_container()
+    data_strassen_time_frac = build_data_container()
+    data_strassen_space_frac = build_data_container()
 
     while dimension <= DIMENSION_END:
         for run in range(0, RUNS_PER_DIMENSION):
@@ -267,24 +270,57 @@ if __name__ == "__main__":
             matrix2 = numpy.array(generate_matrix(dimension))
 
             if MEMORY_PROFILING_ENABLED:
-                tracemalloc.stop()
+                # Testing for standard algorithm
                 tracemalloc.start()
-                standard_matrix_multiply(matrix1, matrix2, dimension)
-                stats = tracemalloc.get_traced_memory()
-                memory_usage_stats_KB = (stats[0]/1000, stats[1]/1000)  # converting bytes to Kilobytes
-                print("Used %dKB of memory" % memory_usage_stats_KB[1])
+                t_standard = round(standard_matrix_multiply(matrix1, matrix2, dimension)[1], DECIMAL_PRECISION)
+                mem_usage = tracemalloc.get_traced_memory()
+                tracemalloc.stop()
+                data_standard_time[dimension][run] = t_standard
+                data_standard_space[dimension][run] = mem_usage[1]/1000
+
+                # Testing for Strassen algorithm with fixed small problem cutoff
+                tracemalloc.start()
+                t_strassen = round(strassen_matrix_multiply(matrix1, matrix2, dimension)[1], DECIMAL_PRECISION)
+                mem_usage = tracemalloc.get_traced_memory()
+                tracemalloc.stop()
+                data_strassen_time[dimension][run] = t_strassen
+                data_strassen_space[dimension][run] = mem_usage[1]/1000
+
+                # Testing for Strassen algorithm with fractional small problem cutoff
+                tracemalloc.start()
+                cutoff = int(dimension*FRACTIONAL_LEAF_SIZE)
+                t_strassen_frac = round(strassen_matrix_multiply(matrix1, matrix2, dimension, cutoff=cutoff)[1], DECIMAL_PRECISION)
+                mem_usage = tracemalloc.get_traced_memory()
+                tracemalloc.stop()
+                data_strassen_time_frac[dimension][run] = t_strassen_frac
+                data_strassen_space_frac[dimension][run] = mem_usage[1] / 1000
+
+                compute_run_statistics(data_standard_time)
+                compute_run_statistics(data_strassen_time)
+                compute_run_statistics(data_strassen_time_frac)
+                compute_run_statistics(data_standard_space)
+                compute_run_statistics(data_strassen_space)
+                compute_run_statistics(data_strassen_space_frac)
+                print(data_standard_time)
+                print_data_report_CSV(data_standard_time, "standard_algo_time.csv")
+                print_data_report_CSV(data_strassen_time, "strassen_algo_time.csv")
+                print_data_report_CSV(data_strassen_time_frac, "strassen_algo_time_frac.csv")
+                print_data_report_CSV(data_standard_space, "standard_algo_space.csv")
+                print_data_report_CSV(data_strassen_space, "strassen_algo_space.csv")
+                print_data_report_CSV(data_strassen_space_frac, "strassen_algo_space_frac.csv")
+
+                # standard_matrix_multiply(matrix1, matrix2, dimension)
+                # stats = tracemalloc.get_traced_memory()
+                # memory_usage_stats_KB = (stats[0]/1000, stats[1]/1000)  # converting bytes to Kilobytes
+                # print("Used %dKB of memory" % memory_usage_stats_KB[1])
             else:
                 t_standard = round(standard_matrix_multiply(matrix1, matrix2, dimension)[1], DECIMAL_PRECISION)
                 t_strassen = round(strassen_matrix_multiply(matrix1, matrix2, dimension)[1], DECIMAL_PRECISION)
                 data_standard_time[dimension][run] = t_standard
                 data_strassen_time[dimension][run] = t_strassen
 
-        if BINARY_DIMENSIONS_ENABLED :
+        if BINARY_DIMENSIONS_ENABLED:
             dimension *= 2
         else:
             dimension += DIMENSION_INCREMENT
-    compute_run_statistics(data_standard_time)
-    compute_run_statistics(data_strassen_time)
-    print(data_standard_time)
-    print_data_report_CSV(data_standard_time, "standard_algo_time.csv")
-    print_data_report_CSV(data_strassen_time, "strassen_algo_time.csv")
+
