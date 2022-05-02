@@ -7,13 +7,13 @@ import numpy
 DECIMAL_PRECISION = 4
 RANDOMINT_LOWERBOUND = 0
 RANDOMINT_UPPERBOUND = 9
-RUNS_PER_DIMENSION = 3
+RUNS_PER_DIMENSION = 1
 DIMENSION_START = 50
 DIMENSION_INCREMENT = 50
-DIMENSION_END = 50
+DIMENSION_END = 750
 AVG_INDEX = RUNS_PER_DIMENSION
 STDEV_INDEX = AVG_INDEX + 1
-MEMORY_PROFILING_ENABLED = True
+MEMORY_PROFILING_ENABLED = False
 LEAF_SIZE = 5
 OUTPUT_DIRECTORY = "output"
 BLAS_OVERRIDE = False
@@ -156,7 +156,7 @@ def strassen_matrix_multiply_recursive(matrix1, matrix2, cutoff = LEAF_SIZE):
         return matrix1 * matrix2
 
     # small problem cutoff
-    elif len(matrix1) <= LEAF_SIZE or BLAS_OVERRIDE:
+    elif len(matrix1) <= cutoff or BLAS_OVERRIDE:
         # return numpy.matmul(matrix1, matrix2)
 
         # print(standard_matrix_multiply(matrix1, matrix2, len(matrix1))[0])
@@ -314,10 +314,34 @@ if __name__ == "__main__":
                 # memory_usage_stats_KB = (stats[0]/1000, stats[1]/1000)  # converting bytes to Kilobytes
                 # print("Used %dKB of memory" % memory_usage_stats_KB[1])
             else:
+                # Testing for standard algorithm
                 t_standard = round(standard_matrix_multiply(matrix1, matrix2, dimension)[1], DECIMAL_PRECISION)
-                t_strassen = round(strassen_matrix_multiply(matrix1, matrix2, dimension)[1], DECIMAL_PRECISION)
                 data_standard_time[dimension][run] = t_standard
+
+                # Testing for Strassen algorithm with fixed small problem cutoff
+                t_strassen = round(strassen_matrix_multiply(matrix1, matrix2, dimension)[1], DECIMAL_PRECISION)
                 data_strassen_time[dimension][run] = t_strassen
+
+
+                # Testing for Strassen algorithm with fractional small problem cutoff
+                cutoff = int(dimension * FRACTIONAL_LEAF_SIZE)
+                t_strassen_frac = round(strassen_matrix_multiply(matrix1, matrix2, dimension, cutoff=cutoff)[1],
+                                        DECIMAL_PRECISION)
+                data_strassen_time_frac[dimension][run] = t_strassen_frac
+
+                compute_run_statistics(data_standard_time)
+                compute_run_statistics(data_strassen_time)
+                compute_run_statistics(data_strassen_time_frac)
+                compute_run_statistics(data_standard_space)
+                compute_run_statistics(data_strassen_space)
+                compute_run_statistics(data_strassen_space_frac)
+                print(data_standard_time)
+                print_data_report_CSV(data_standard_time, "standard_algo_time.csv")
+                print_data_report_CSV(data_strassen_time, "strassen_algo_time.csv")
+                print_data_report_CSV(data_strassen_time_frac, "strassen_algo_time_frac.csv")
+                print_data_report_CSV(data_standard_space, "standard_algo_space.csv")
+                print_data_report_CSV(data_strassen_space, "strassen_algo_space.csv")
+                print_data_report_CSV(data_strassen_space_frac, "strassen_algo_space_frac.csv")
 
         if BINARY_DIMENSIONS_ENABLED:
             dimension *= 2
