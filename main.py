@@ -182,13 +182,13 @@ def strassen_matrix_multiply_recursive(matrix1, matrix2, cutoff = LEAF_SIZE):
     # print("h")
     # print(h)
     # print(numpy.subtract(f,h))
-    p1 = strassen_matrix_multiply_recursive(a, f - h)
-    p2 = strassen_matrix_multiply_recursive(a + b, h)
-    p3 = strassen_matrix_multiply_recursive(c + d, e)
-    p4 = strassen_matrix_multiply_recursive(d, g - e)
-    p5 = strassen_matrix_multiply_recursive(a + d, e + h)
-    p6 = strassen_matrix_multiply_recursive(b - d, g + h)
-    p7 = strassen_matrix_multiply_recursive(a - c, e + f)
+    p1 = strassen_matrix_multiply_recursive(a, f - h, cutoff=cutoff)
+    p2 = strassen_matrix_multiply_recursive(a + b, h, cutoff=cutoff)
+    p3 = strassen_matrix_multiply_recursive(c + d, e, cutoff=cutoff)
+    p4 = strassen_matrix_multiply_recursive(d, g - e, cutoff=cutoff)
+    p5 = strassen_matrix_multiply_recursive(a + d, e + h, cutoff=cutoff)
+    p6 = strassen_matrix_multiply_recursive(b - d, g + h, cutoff=cutoff)
+    p7 = strassen_matrix_multiply_recursive(a - c, e + f, cutoff=cutoff)
 
     # Computing the values of the 4 quadrants of the final matrix c
     c11 = p5 + p4 - p2 + p6
