@@ -13,12 +13,14 @@ DIMENSION_INCREMENT = 50
 DIMENSION_END = 750
 AVG_INDEX = RUNS_PER_DIMENSION
 STDEV_INDEX = AVG_INDEX + 1
-MEMORY_PROFILING_ENABLED = False
-LEAF_SIZE = 5
+MEMORY_PROFILING_ENABLED = True
+LEAF_SIZE = 800
 OUTPUT_DIRECTORY = "output"
 BLAS_OVERRIDE = False
 BINARY_DIMENSIONS_ENABLED = False
 FRACTIONAL_LEAF_SIZE = 0.10
+INDEPENDENT_SMC_OVERRIDE = True
+
 
 
 def standard_matrix_multiply(matrix1, matrix2, dimension):
@@ -269,7 +271,16 @@ if __name__ == "__main__":
             matrix1 = numpy.array(generate_matrix(dimension))  # unique matrices for each run, converted to numpy arrays
             matrix2 = numpy.array(generate_matrix(dimension))
 
-            if MEMORY_PROFILING_ENABLED:
+            if INDEPENDENT_SMC_OVERRIDE:
+                # Testing for Strassen algorithm with fixed small problem cutoff
+                #tracemalloc.start()
+                t_strassen = round(standard_matrix_multiply(matrix1, matrix2, dimension)[1], DECIMAL_PRECISION)
+                #mem_usage = tracemalloc.get_traced_memory()
+                #tracemalloc.stop()
+                data_strassen_time[dimension][run] = t_strassen
+                #data_strassen_space[dimension][run] = mem_usage[1] / 1000
+
+            elif MEMORY_PROFILING_ENABLED :
                 # Testing for standard algorithm
                 tracemalloc.start()
                 t_standard = round(standard_matrix_multiply(matrix1, matrix2, dimension)[1], DECIMAL_PRECISION)
