@@ -4,8 +4,8 @@ import tracemalloc
 import os
 import numpy
 
-DECIMAL_PRECISION = 4
-RANDOMINT_LOWERBOUND = 0
+DECIMAL_PRECISION = 4  # Controls the floating point precision for time and memory usage statistics
+RANDOMINT_LOWERBOUND = 0  # Controls the range of numbers randomized numbers selected for elements of the matrices
 RANDOMINT_UPPERBOUND = 9
 RUNS_PER_DIMENSION = 1
 DIMENSION_START = 50
@@ -13,18 +13,19 @@ DIMENSION_INCREMENT = 50
 DIMENSION_END = 750
 AVG_INDEX = RUNS_PER_DIMENSION
 STDEV_INDEX = AVG_INDEX + 1
-MEMORY_PROFILING_ENABLED = True
-LEAF_SIZE = 800
-OUTPUT_DIRECTORY = "output"
-BLAS_OVERRIDE = False
-BINARY_DIMENSIONS_ENABLED = False
-FRACTIONAL_LEAF_SIZE = 0.10
-INDEPENDENT_SMC_OVERRIDE = True
-
+MEMORY_PROFILING_ENABLED = True  # Enable or disable memory usage analysis, since it incurs significant overhead
+LEAF_SIZE = 800  # equivalent to the k-value/Small Problem Cutoff
+OUTPUT_DIRECTORY = "output"  # Name of the directory to be created for output of run data
+BLAS_OVERRIDE = False  # Used to force Numpy's built in matrix multiplication
+BINARY_DIMENSIONS_ENABLED = False  # Enable to only test matrices with dimensions equal to a power of 2 between the start and end bounds
+FRACTIONAL_LEAF_SIZE = 0.10  # Fractional K-value
+INDEPENDENT_SMC_OVERRIDE = True  #Force testing for only Strassen's algorithm with LEAF_SIZE small problem cutoff
 
 
 def standard_matrix_multiply(matrix1, matrix2, dimension):
     result_matrix = []
+
+    # Generate matrix of given dimensions prefilled with zeros
     for i in range(0, dimension):
         result_matrix.append([])
         for j in range(0, dimension):
@@ -38,14 +39,14 @@ def standard_matrix_multiply(matrix1, matrix2, dimension):
     print("\nCalculating product using standard algorithm...")
     # standard matrix multiplication algorithm
     start_time = time.perf_counter()
-    if BLAS_OVERRIDE:
+    if BLAS_OVERRIDE:  # Use numpy Matrix multiplication instead
         result_matrix = numpy.matmul(matrix1, matrix2)
     else:
         for i in range(len(matrix1)):  # go through rows of 1
             for j in range(len(matrix2[0])):  # go through columns of 2
                 for k in range(len(matrix2)):  # go through rows of 2
                     result_matrix[i][j] += matrix1[i][k] * matrix2[k][j]
-    calc_time = time.perf_counter() - start_time
+    calc_time = time.perf_counter() - start_time  # Get elapsed time
     print("Solution matrix:")
     print_matrix(result_matrix)
     print(f' Calculated in {calc_time} seconds for dimensions {dimension}x{dimension}')
@@ -63,6 +64,8 @@ def standard_matrix_multiply_kurz(matrix1, matrix2, dimension):
     """
 
     result_matrix = []
+
+    # Generate matrix of given dimensions prefilled with zeros
     for i in range(0, dimension):
         result_matrix.append([])
         for j in range(0, dimension):
@@ -94,19 +97,26 @@ def print_matrix(matrix):
 
 def generate_matrix(dimension):
     matrix1 = []
+
+    # create matrix represented as 2d array
     for i in range(0, dimension):
         matrix1.append([])
         for j in range(0, dimension):
+            #Fill each element with a random number
             matrix1[i].append(random.randint(RANDOMINT_LOWERBOUND, RANDOMINT_UPPERBOUND))
     return matrix1
 
 
 def build_data_container():
-    container = {}
+    """
+    Builds a data container to store per-run statistics for time and memory usage.
+    :return:
+    """
+    container = {}  # Container starts as an empty dictionary
     d = DIMENSION_START
     while d <= DIMENSION_END:
-        container[d] = []  # key = dimension of matrices for that run
-        for i in range(0, RUNS_PER_DIMENSION+2):  # extra 2 spaces for storing average and standard deviation
+        container[d] = []  # dictionary key = dimension of matrices for that run, each key holds an array to store data
+        for i in range(0, RUNS_PER_DIMENSION+2):  # reserve last 2 spaces for storing average and standard deviation
             container[d].append(0)
         if BINARY_DIMENSIONS_ENABLED:
             d *= 2
@@ -123,9 +133,10 @@ def compute_run_statistics(data):
             average += data[key][n]
         average = average / RUNS_PER_DIMENSION
 
+        # Calculation of standard deviation
         for i in range(0, RUNS_PER_DIMENSION):
-            stdev += (data[key][i] - average)**2
-        stdev = (stdev / RUNS_PER_DIMENSION)**(1/2)
+            stdev += (data[key][i] - average)**2  # Calculating variance
+        stdev = (stdev / RUNS_PER_DIMENSION)**(1/2)  # Get the square root of the variance to obtain the standard deviation
         data[key][AVG_INDEX] = round(average, DECIMAL_PRECISION)
         data[key][STDEV_INDEX] = stdev
 
@@ -140,7 +151,7 @@ def strassen_matrix_multiply(matrix1, matrix2, dimension, cutoff = LEAF_SIZE):
     print(f"\nCalculating product using strassen algorithm (LEAF_SIZE = {cutoff})...")
     start_time = time.perf_counter()
     result_matrix = strassen_matrix_multiply_recursive(matrix1, matrix2, cutoff=cutoff)
-    calc_time = time.perf_counter() - start_time
+    calc_time = time.perf_counter() - start_time  # Store total runtime
     print("Strassen matrix:")
     print_matrix(result_matrix)
     print(f' Calculated in {calc_time} seconds for dimensions {dimension}x{dimension}')
@@ -199,27 +210,9 @@ def strassen_matrix_multiply_recursive(matrix1, matrix2, cutoff = LEAF_SIZE):
     c22 = p1 + p5 - p3 - p7
 
     # Combining the 4 quadrants into a single matrix by stacking horizontally and vertically.
+    # This is done by vertically stacking 2 horizontally stacked matrices
     c = numpy.vstack((numpy.hstack((c11, c12)), numpy.hstack((c21, c22))))
     return c
-
-
-def split_quarters_manual(matrix):  # split matrix into quarters
-    a = matrix
-    b = matrix
-    c = matrix
-    d = matrix
-    while len(a) > len(matrix)/2:
-        a = a[:len(a)//2]
-        b = b[:len(b)//2]
-        c = c[len(c)//2:]
-        d = d[len(d)//2:]
-    while len(a[0]) > len(matrix[0])/2:
-        for i in range(len(a[0])//2):
-            a[i] = a[i][:len(a[i])//2]
-            b[i] = b[i][len(b[i])//2:]
-            c[i] = c[i][:len(c[i])//2]
-            d[i] = d[i][len(d[i])//2:]
-    return a, b, c, d
 
 
 def split(matrix):
@@ -228,8 +221,8 @@ def split(matrix):
     Input: nxn matrix
     Output: tuple containing 4 n/2 x n/2 matrices corresponding to a, b, c, d
     """
-    row, col = matrix.shape
-    row2, col2 = row//2, col//2
+    row, col = matrix.shape  # Get the shape of the numpy matrix and store the row and column values
+    row2, col2 = row//2, col//2  # Get the midpoint values for the row and column dimensions
     return matrix[:row2, :col2], matrix[:row2, col2:], matrix[row2:, :col2], matrix[row2:, col2:]
 
 
@@ -239,26 +232,26 @@ def print_data_report(data):
 
 
 def print_data_report_CSV(data, filename):
-    filepath = os.path.join(OUTPUT_DIRECTORY, filename)
+    filepath = os.path.join(OUTPUT_DIRECTORY, filename) #Generate proper filepath regardless of platform
     title_row = ["Dimension"]
     for i in range(0, RUNS_PER_DIMENSION):
-        title_row.append(f"Run{i+1}")
+        title_row.append(f"Run{i+1}")  # Add a row for each run
     title_row.extend(["Average", "Standard Deviation"])
 
-    os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)
+    os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)  # Create output directory only if it doesnt already exist
     with open(filepath, 'w') as f:
-        f.write(','.join(title_row))
-        for key in data.keys():
+        f.write(','.join(title_row))  # write title row to top of file
+        for key in data.keys():  # Iterate through every dimension in the data container
             f.write('\n')
-            row_array = [str(key)]
+            row_array = [str(key)]  # Create 1 element array starting with the dimension from the data container
             for i in data[key]:
-                row_array.append(str(i))
-            f.write(','.join(row_array))
+                row_array.append(str(i))  # add every element from the array corresponding to each dimension in the data container
+            f.write(','.join(row_array))  # write the array to the file in one line, separated by commas
         print(f"Data written to {filepath}.")
 
 
 if __name__ == "__main__":
-    dimension = DIMENSION_START
+    dimension = DIMENSION_START  # Initialize dimension value for main loop
     data_standard_space = build_data_container()
     data_standard_time = build_data_container()
     data_strassen_space = build_data_container()
@@ -287,7 +280,7 @@ if __name__ == "__main__":
                 mem_usage = tracemalloc.get_traced_memory()
                 tracemalloc.stop()
                 data_standard_time[dimension][run] = t_standard
-                data_standard_space[dimension][run] = mem_usage[1]/1000
+                data_standard_space[dimension][run] = mem_usage[1]/1000  # Memory usage given in bytes, so divide by 1000 to conver to kilobytes
 
                 # Testing for Strassen algorithm with fixed small problem cutoff
                 tracemalloc.start()
@@ -306,6 +299,7 @@ if __name__ == "__main__":
                 data_strassen_time_frac[dimension][run] = t_strassen_frac
                 data_strassen_space_frac[dimension][run] = mem_usage[1] / 1000
 
+                # Compute average and standard deviation for all data containers in-place
                 compute_run_statistics(data_standard_time)
                 compute_run_statistics(data_strassen_time)
                 compute_run_statistics(data_strassen_time_frac)
@@ -313,6 +307,8 @@ if __name__ == "__main__":
                 compute_run_statistics(data_strassen_space)
                 compute_run_statistics(data_strassen_space_frac)
                 print(data_standard_time)
+
+                #Print all data containers to csv files
                 print_data_report_CSV(data_standard_time, "standard_algo_time.csv")
                 print_data_report_CSV(data_strassen_time, "strassen_algo_time.csv")
                 print_data_report_CSV(data_strassen_time_frac, "strassen_algo_time_frac.csv")
@@ -340,6 +336,7 @@ if __name__ == "__main__":
                                         DECIMAL_PRECISION)
                 data_strassen_time_frac[dimension][run] = t_strassen_frac
 
+                # Compute average and standard deviation for all data containers in-place
                 compute_run_statistics(data_standard_time)
                 compute_run_statistics(data_strassen_time)
                 compute_run_statistics(data_strassen_time_frac)
@@ -347,6 +344,8 @@ if __name__ == "__main__":
                 compute_run_statistics(data_strassen_space)
                 compute_run_statistics(data_strassen_space_frac)
                 print(data_standard_time)
+
+                # Print all data containers to csv files
                 print_data_report_CSV(data_standard_time, "standard_algo_time.csv")
                 print_data_report_CSV(data_strassen_time, "strassen_algo_time.csv")
                 print_data_report_CSV(data_strassen_time_frac, "strassen_algo_time_frac.csv")
